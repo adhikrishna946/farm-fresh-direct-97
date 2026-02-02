@@ -8,11 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Users, 
   Package, 
-  ShoppingBag, 
-  CheckCircle, 
-  XCircle,
-  TrendingUp,
-  Clock
+  ShoppingBag
 } from 'lucide-react';
 
 interface Profile {
@@ -41,7 +37,6 @@ export default function AdminDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [stats, setStats] = useState({
     totalUsers: 0,
-    pendingVerifications: 0,
     totalProducts: 0,
     totalOrders: 0,
   });
@@ -62,7 +57,6 @@ export default function AdminDashboard() {
       setStats(prev => ({
         ...prev,
         totalUsers: usersData.length,
-        pendingVerifications: usersData.filter(u => !u.is_verified && u.role !== 'admin').length,
       }));
     }
 
@@ -97,26 +91,6 @@ export default function AdminDashboard() {
     setIsLoading(false);
   };
 
-  const verifyUser = async (userId: string, verified: boolean) => {
-    const { error } = await supabase
-      .from('profiles')
-      .update({ is_verified: verified })
-      .eq('id', userId);
-    
-    if (error) {
-      toast({
-        variant: 'destructive',
-        title: 'Error',
-        description: error.message,
-      });
-    } else {
-      toast({
-        title: verified ? 'User verified' : 'Verification revoked',
-        description: `The user has been ${verified ? 'verified' : 'unverified'}.`,
-      });
-      fetchData();
-    }
-  };
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     const { error } = await supabase
@@ -179,19 +153,6 @@ export default function AdminDashboard() {
           </CardContent>
         </Card>
         
-        <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-accent/10 flex items-center justify-center">
-                <Clock className="w-6 h-6 text-accent" />
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{stats.pendingVerifications}</p>
-                <p className="text-sm text-muted-foreground">Pending</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
         
         <Card>
           <CardContent className="pt-6">
@@ -254,37 +215,9 @@ export default function AdminDashboard() {
                       </div>
                     </div>
                     
-                    <div className="flex items-center gap-3">
-                      <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
-                        {user.role}
-                      </Badge>
-                      
-                      {user.role !== 'admin' && (
-                        <>
-                          {user.is_verified ? (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => verifyUser(user.id, false)}
-                              className="gap-1 text-primary"
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                              Verified
-                            </Button>
-                          ) : (
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => verifyUser(user.id, true)}
-                              className="gap-1"
-                            >
-                              <XCircle className="w-4 h-4" />
-                              Verify
-                            </Button>
-                          )}
-                        </>
-                      )}
-                    </div>
+                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'} className="capitalize">
+                      {user.role}
+                    </Badge>
                   </div>
                 ))}
               </div>
