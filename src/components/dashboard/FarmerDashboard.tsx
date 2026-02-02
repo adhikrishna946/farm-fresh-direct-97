@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -8,8 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Package, IndianRupee, Edit, Trash2, ImagePlus } from 'lucide-react';
+import { Plus, Package, IndianRupee, Edit, Trash2, ImagePlus, TrendingUp, Loader2 } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -21,6 +22,23 @@ interface Product {
   image_url: string | null;
   stock_quantity: number | null;
   is_available: boolean | null;
+}
+
+interface MarketPrice {
+  per_kg: number;
+  per_quintal: number;
+  min_price: number;
+  max_price: number;
+}
+
+interface MarketPriceResponse {
+  commodity: string;
+  state: string;
+  market?: string;
+  market_price: MarketPrice;
+  date?: string;
+  source: string;
+  message?: string;
 }
 
 export default function FarmerDashboard() {
@@ -40,6 +58,11 @@ export default function FarmerDashboard() {
   const [stockQuantity, setStockQuantity] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  
+  // Market price state
+  const [marketPrice, setMarketPrice] = useState<MarketPriceResponse | null>(null);
+  const [isFetchingPrice, setIsFetchingPrice] = useState(false);
+  const [agreedToPrice, setAgreedToPrice] = useState(false);
 
   useEffect(() => {
     fetchProducts();
@@ -69,7 +92,51 @@ export default function FarmerDashboard() {
     setStockQuantity('');
     setImageFile(null);
     setEditingProduct(null);
+    setMarketPrice(null);
+    setAgreedToPrice(false);
   };
+
+  // Fetch market price from AgMarkNet API
+  const fetchMarketPrice = useCallback(async (productName: string) => {
+    if (!productName || productName.length < 2) {
+      setMarketPrice(null);
+      return;
+    }
+    
+    setIsFetchingPrice(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('get-market-price', {
+        body: { commodity: productName, state: 'Karnataka' }
+      });
+      
+      if (error) {
+        console.error('Error fetching market price:', error);
+        setMarketPrice(null);
+      } else {
+        setMarketPrice(data);
+        // Auto-set price to recommended market price
+        if (data?.market_price?.per_kg && !price) {
+          setPrice(data.market_price.per_kg.toString());
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch market price:', err);
+      setMarketPrice(null);
+    } finally {
+      setIsFetchingPrice(false);
+    }
+  }, [price]);
+
+  // Debounce name changes to fetch market price
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (name && isDialogOpen) {
+        fetchMarketPrice(name);
+      }
+    }, 500);
+    
+    return () => clearTimeout(timer);
+  }, [name, isDialogOpen, fetchMarketPrice]);
 
   const handleOpenDialog = (product?: Product) => {
     if (product) {
@@ -80,6 +147,7 @@ export default function FarmerDashboard() {
       setPrice(product.price.toString());
       setUnit(product.unit || 'kg');
       setStockQuantity(product.stock_quantity?.toString() || '');
+      setAgreedToPrice(true); // Already agreed if editing
     } else {
       resetForm();
     }
@@ -231,6 +299,44 @@ export default function FarmerDashboard() {
                 />
               </div>
               
+              {/* Market Price Display */}
+              {(isFetchingPrice || marketPrice) && (
+                <Card className="bg-muted/50 border-primary/20">
+                  <CardContent className="pt-4 pb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <TrendingUp className="w-4 h-4 text-primary" />
+                      <span className="text-sm font-medium">AgMarkNet Market Price</span>
+                      {isFetchingPrice && <Loader2 className="w-3 h-3 animate-spin ml-auto" />}
+                    </div>
+                    
+                    {marketPrice && !isFetchingPrice && (
+                      <div className="space-y-2">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm text-muted-foreground">Recommended Price:</span>
+                          <span className="text-lg font-bold text-primary">₹{marketPrice.market_price.per_kg}/kg</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>Range: ₹{marketPrice.market_price.min_price} - ₹{marketPrice.market_price.max_price}/kg</span>
+                          <span className="capitalize">{marketPrice.source}</span>
+                        </div>
+                        {marketPrice.message && (
+                          <p className="text-xs text-amber-600">{marketPrice.message}</p>
+                        )}
+                        <Button 
+                          type="button" 
+                          variant="outline" 
+                          size="sm" 
+                          className="w-full mt-2"
+                          onClick={() => setPrice(marketPrice.market_price.per_kg.toString())}
+                        >
+                          Use Recommended Price (₹{marketPrice.market_price.per_kg})
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+              
               <div className="space-y-2">
                 <Label htmlFor="description">Description</Label>
                 <Textarea
@@ -322,9 +428,40 @@ export default function FarmerDashboard() {
                 )}
               </div>
               
-              <Button type="submit" className="w-full" disabled={isSubmitting}>
+              {/* Agreement Checkbox */}
+              {marketPrice && (
+                <div className="flex items-start space-x-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
+                  <Checkbox
+                    id="agree-price"
+                    checked={agreedToPrice}
+                    onCheckedChange={(checked) => setAgreedToPrice(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <div className="space-y-1">
+                    <Label htmlFor="agree-price" className="text-sm font-medium cursor-pointer">
+                      I agree to the market pricing guidelines
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      By checking this, you confirm that your price is based on the current AgMarkNet market rates 
+                      (₹{marketPrice.market_price.min_price} - ₹{marketPrice.market_price.max_price}/kg).
+                    </p>
+                  </div>
+                </div>
+              )}
+              
+              <Button 
+                type="submit" 
+                className="w-full" 
+                disabled={isSubmitting || (marketPrice && !agreedToPrice && !editingProduct)}
+              >
                 {isSubmitting ? 'Saving...' : editingProduct ? 'Update Product' : 'Add Product'}
               </Button>
+              
+              {marketPrice && !agreedToPrice && !editingProduct && (
+                <p className="text-xs text-center text-amber-600">
+                  Please agree to the market pricing guidelines to add your product
+                </p>
+              )}
             </form>
           </DialogContent>
         </Dialog>
