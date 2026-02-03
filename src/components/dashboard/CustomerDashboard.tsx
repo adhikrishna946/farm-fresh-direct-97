@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList } from 'lucide-react';
+import FloatingCart from '@/components/cart/FloatingCart';
 
 interface Product {
   id: string;
@@ -461,6 +462,8 @@ export default function CustomerDashboard() {
           </Card>
         </TabsContent>
       </Tabs>
+      {/* Floating Cart */}
+      <FloatingCart cartItems={cartItems} onUpdateQuantity={updateCartQuantity} />
     </div>
   );
 }
