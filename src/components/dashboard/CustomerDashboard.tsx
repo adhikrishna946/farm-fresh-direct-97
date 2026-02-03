@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, ShoppingCart, Package, Plus, Minus, Filter } from 'lucide-react';
+import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -27,11 +28,28 @@ interface CartItem {
   product: Product;
 }
 
+interface Order {
+  id: string;
+  total_amount: number;
+  status: string;
+  shipping_address: string | null;
+  created_at: string;
+  order_items: OrderItem[];
+}
+
+interface OrderItem {
+  id: string;
+  product_name: string;
+  quantity: number;
+  price_at_purchase: number;
+}
+
 export default function CustomerDashboard() {
   const { profile } = useAuth();
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
@@ -41,6 +59,7 @@ export default function CustomerDashboard() {
   useEffect(() => {
     fetchProducts();
     fetchCart();
+    fetchOrders();
   }, [profile]);
 
   const fetchProducts = async () => {
@@ -71,6 +90,27 @@ export default function CustomerDashboard() {
     
     if (!error && data) {
       setCartItems(data as unknown as CartItem[]);
+    }
+  };
+
+  const fetchOrders = async () => {
+    if (!profile) return;
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        id,
+        total_amount,
+        status,
+        shipping_address,
+        created_at,
+        order_items(id, product_name, quantity, price_at_purchase)
+      `)
+      .eq('customer_id', profile.id)
+      .order('created_at', { ascending: false });
+    
+    if (!error && data) {
+      setOrders(data as Order[]);
     }
   };
 
@@ -172,17 +212,6 @@ export default function CustomerDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Verification Warning */}
-      {profile && !profile.is_verified && (
-        <Card className="bg-accent/10 border-accent">
-          <CardContent className="py-4">
-            <p className="text-sm text-accent-foreground">
-              ⏳ Your account is pending verification. You can browse products but cannot make purchases yet.
-            </p>
-          </CardContent>
-        </Card>
-      )}
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -202,6 +231,18 @@ export default function CustomerDashboard() {
           </Card>
         )}
       </div>
+
+      {/* Tabs for Shop and Orders */}
+      <Tabs defaultValue="shop" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="shop">Shop</TabsTrigger>
+          <TabsTrigger value="orders" className="gap-2">
+            <ClipboardList className="w-4 h-4" />
+            My Orders ({orders.length})
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="shop" className="space-y-6">
 
       {/* Search and Filters */}
       <div className="flex flex-col sm:flex-row gap-4">
@@ -338,6 +379,88 @@ export default function CustomerDashboard() {
           })}
         </div>
       )}
+        </TabsContent>
+
+        {/* My Orders Tab */}
+        <TabsContent value="orders" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <ClipboardList className="w-5 h-5" />
+                My Orders
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {orders.length === 0 ? (
+                <div className="text-center py-8">
+                  <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mx-auto mb-4">
+                    <ClipboardList className="w-8 h-8 text-muted-foreground" />
+                  </div>
+                  <h3 className="text-lg font-semibold mb-2">No orders yet</h3>
+                  <p className="text-muted-foreground">
+                    Your orders will appear here after checkout
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orders.map((order) => (
+                    <div
+                      key={order.id}
+                      className="p-4 rounded-lg border"
+                    >
+                      <div className="flex items-center justify-between mb-3">
+                        <div>
+                          <p className="font-semibold">Order #{order.id.slice(0, 8)}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(order.created_at).toLocaleDateString('en-IN', {
+                              day: 'numeric',
+                              month: 'short',
+                              year: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <Badge
+                            variant={
+                              order.status === 'completed' ? 'default' :
+                              order.status === 'pending' ? 'secondary' :
+                              'outline'
+                            }
+                            className="capitalize"
+                          >
+                            {order.status}
+                          </Badge>
+                          <p className="font-bold mt-1">₹{order.total_amount}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="border-t pt-3 space-y-2">
+                        {order.order_items.map((item) => (
+                          <div key={item.id} className="flex justify-between text-sm">
+                            <span className="text-muted-foreground">
+                              {item.product_name} × {item.quantity}
+                            </span>
+                            <span>₹{(item.price_at_purchase * item.quantity).toFixed(2)}</span>
+                          </div>
+                        ))}
+                      </div>
+
+                      {order.shipping_address && (
+                        <div className="border-t pt-3 mt-3">
+                          <p className="text-xs text-muted-foreground">Shipping to:</p>
+                          <p className="text-sm">{order.shipping_address}</p>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

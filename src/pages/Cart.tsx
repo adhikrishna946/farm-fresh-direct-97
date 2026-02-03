@@ -115,15 +115,6 @@ export default function Cart() {
 
   const handleCheckout = async () => {
     if (!profile) return;
-    
-    if (!profile.is_verified) {
-      toast({
-        variant: 'destructive',
-        title: 'Account not verified',
-        description: 'Please wait for admin verification before placing orders.',
-      });
-      return;
-    }
 
     if (!shippingAddress.trim()) {
       toast({
@@ -174,9 +165,20 @@ export default function Cart() {
 
       if (clearError) throw clearError;
 
+      // Verify order is readable before redirecting
+      const { data: verifiedOrder } = await supabase
+        .from('orders')
+        .select('id')
+        .eq('id', order.id)
+        .single();
+
+      if (!verifiedOrder) {
+        throw new Error('Order created but verification failed');
+      }
+
       toast({
-        title: 'Order placed!',
-        description: 'Your order has been placed successfully.',
+        title: '🎉 Order Placed Successfully!',
+        description: `Your order #${order.id.slice(0, 8)} has been placed. Thank you for shopping with us!`,
       });
 
       navigate('/dashboard');
@@ -356,17 +358,11 @@ export default function Cart() {
                     />
                   </div>
 
-                  {!profile?.is_verified && (
-                    <p className="text-sm text-destructive">
-                      Your account is pending verification. Please wait for admin approval.
-                    </p>
-                  )}
-
                   <Button
                     className="w-full"
                     size="lg"
                     onClick={handleCheckout}
-                    disabled={isCheckingOut || !profile?.is_verified}
+                    disabled={isCheckingOut}
                   >
                     {isCheckingOut ? 'Processing...' : 'Place Order'}
                   </Button>
