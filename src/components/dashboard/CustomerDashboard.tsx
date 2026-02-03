@@ -129,37 +129,46 @@ export default function CustomerDashboard() {
       return;
     }
 
-    const existingItem = cartItems.find(i => i.product_id === product.id);
-    
-    if (existingItem) {
-      const { error } = await supabase
-        .from('cart_items')
-        .update({ quantity: existingItem.quantity + 1 })
-        .eq('id', existingItem.id);
+    try {
+      const existingItem = cartItems.find(i => i.product_id === product.id);
       
-      if (error) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message });
+      if (existingItem) {
+        const { error } = await supabase
+          .from('cart_items')
+          .update({ quantity: existingItem.quantity + 1 })
+          .eq('id', existingItem.id);
+        
+        if (error) {
+          toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } else {
+          await fetchCart();
+        }
       } else {
-        fetchCart();
+        const { error } = await supabase
+          .from('cart_items')
+          .insert({
+            customer_id: profile.id,
+            product_id: product.id,
+            quantity: 1,
+          });
+        
+        if (error) {
+          toast({ variant: 'destructive', title: 'Error', description: error.message });
+        } else {
+          await fetchCart();
+          toast({
+            title: 'Added to cart!',
+            description: `${product.name} has been added to your cart.`,
+          });
+        }
       }
-    } else {
-      const { error } = await supabase
-        .from('cart_items')
-        .insert({
-          customer_id: profile.id,
-          product_id: product.id,
-          quantity: 1,
-        });
-      
-      if (error) {
-        toast({ variant: 'destructive', title: 'Error', description: error.message });
-      } else {
-        fetchCart();
-        toast({
-          title: 'Added to cart!',
-          description: `${product.name} has been added to your cart.`,
-        });
-      }
+    } catch (error) {
+      console.error('Error adding item to cart:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: 'An unexpected error occurred. Please try again.',
+      });
     }
   };
 
