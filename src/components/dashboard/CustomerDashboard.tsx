@@ -129,15 +129,6 @@ export default function CustomerDashboard() {
       return;
     }
 
-    if (!profile.is_verified) {
-      toast({
-        variant: 'destructive',
-        title: 'Account not verified',
-        description: 'Please wait for admin verification to start shopping.',
-      });
-      return;
-    }
-
     const existingItem = cartItems.find(i => i.product_id === product.id);
     
     if (existingItem) {
