@@ -91,6 +91,29 @@ export default function AdminDashboard() {
     setIsLoading(false);
   };
 
+  const toggleFarmerVerification = async (userId: string, isVerified: boolean) => {
+    const { error } = await supabase
+      .from('profiles')
+      .update({ is_verified: isVerified })
+      .eq('id', userId);
+    
+    if (error) {
+      toast({
+        variant: 'destructive',
+        title: 'Error',
+        description: error.message,
+      });
+    } else {
+      toast({
+        title: isVerified ? 'Farmer verified' : 'Verification revoked',
+        description: isVerified 
+          ? 'The farmer can now sell products to customers.' 
+          : 'The farmer\'s products are now hidden from customers.',
+      });
+      fetchData();
+    }
+  };
+
 
   const updateOrderStatus = async (orderId: string, status: string) => {
     const { error } = await supabase
@@ -194,7 +217,54 @@ export default function AdminDashboard() {
         <TabsContent value="users" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>User Management</CardTitle>
+              <CardTitle>Farmer Verification</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {users.filter(u => u.role === 'farmer').map((user) => (
+                  <div
+                    key={user.id}
+                    className="flex items-center justify-between p-4 rounded-lg border"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                        <span className="text-sm font-medium text-primary">
+                          {user.full_name?.[0] || user.email[0].toUpperCase()}
+                        </span>
+                      </div>
+                      <div>
+                        <p className="font-medium">{user.full_name || 'No name'}</p>
+                        <p className="text-sm text-muted-foreground">{user.email}</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-3">
+                      <Badge variant={user.is_verified ? 'default' : 'secondary'}>
+                        {user.is_verified ? 'Verified' : 'Pending'}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        variant={user.is_verified ? 'outline' : 'default'}
+                        onClick={() => toggleFarmerVerification(user.id, !user.is_verified)}
+                      >
+                        {user.is_verified ? 'Revoke' : 'Verify'}
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+                
+                {users.filter(u => u.role === 'farmer').length === 0 && (
+                  <p className="text-center text-muted-foreground py-8">
+                    No farmers registered yet
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Card>
+            <CardHeader>
+              <CardTitle>All Users</CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
