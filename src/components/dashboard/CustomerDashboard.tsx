@@ -64,16 +64,46 @@ export default function CustomerDashboard() {
   }, [profile]);
 
   const fetchProducts = async () => {
-    // Fetch products only from verified farmers
+    // Fetch products only from verified farmers using inner join
     const { data, error } = await supabase
       .from('products')
-      .select('*, farmer:profiles!inner(is_verified)')
+      .select(`
+        id,
+        name,
+        description,
+        category,
+        price,
+        unit,
+        image_url,
+        stock_quantity,
+        farmer_id,
+        farmer:profiles!inner(
+          id,
+          is_verified
+        )
+      `)
       .eq('is_available', true)
       .eq('farmer.is_verified', true)
       .order('created_at', { ascending: false });
     
+    if (error) {
+      console.error('Error fetching products:', error);
+    }
+    
     if (!error && data) {
-      setProducts(data);
+      // Transform data to match Product interface
+      const products = data.map(item => ({
+        id: item.id,
+        name: item.name,
+        description: item.description,
+        category: item.category,
+        price: item.price,
+        unit: item.unit,
+        image_url: item.image_url,
+        stock_quantity: item.stock_quantity,
+        farmer_id: item.farmer_id,
+      }));
+      setProducts(products);
     }
     setIsLoading(false);
   };
