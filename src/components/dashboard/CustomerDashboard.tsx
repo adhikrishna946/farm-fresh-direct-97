@@ -64,10 +64,12 @@ export default function CustomerDashboard() {
   }, [profile]);
 
   const fetchProducts = async () => {
+    // Fetch products only from verified farmers
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select('*, farmer:profiles!inner(is_verified)')
       .eq('is_available', true)
+      .eq('farmer.is_verified', true)
       .order('created_at', { ascending: false });
     
     if (!error && data) {
