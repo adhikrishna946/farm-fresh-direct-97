@@ -53,6 +53,45 @@ export type Database = {
           },
         ]
       }
+      farm_details: {
+        Row: {
+          area_unit: string | null
+          created_at: string | null
+          description: string | null
+          farm_location: string | null
+          farm_name: string
+          farmer_id: string
+          farming_type: string | null
+          id: string
+          total_area: number | null
+          updated_at: string | null
+        }
+        Insert: {
+          area_unit?: string | null
+          created_at?: string | null
+          description?: string | null
+          farm_location?: string | null
+          farm_name: string
+          farmer_id: string
+          farming_type?: string | null
+          id?: string
+          total_area?: number | null
+          updated_at?: string | null
+        }
+        Update: {
+          area_unit?: string | null
+          created_at?: string | null
+          description?: string | null
+          farm_location?: string | null
+          farm_name?: string
+          farmer_id?: string
+          farming_type?: string | null
+          id?: string
+          total_area?: number | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       order_items: {
         Row: {
           created_at: string | null
@@ -141,6 +180,7 @@ export type Database = {
           category: string
           created_at: string | null
           description: string | null
+          expiry_date: string | null
           farmer_id: string
           id: string
           image_url: string | null
@@ -155,6 +195,7 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string | null
+          expiry_date?: string | null
           farmer_id: string
           id?: string
           image_url?: string | null
@@ -169,6 +210,7 @@ export type Database = {
           category?: string
           created_at?: string | null
           description?: string | null
+          expiry_date?: string | null
           farmer_id?: string
           id?: string
           image_url?: string | null
@@ -193,37 +235,46 @@ export type Database = {
         Row: {
           address: string | null
           avatar_url: string | null
+          city: string | null
           created_at: string | null
           email: string
           full_name: string | null
           id: string
           is_verified: boolean | null
           phone: string | null
+          pincode: string | null
           role: Database["public"]["Enums"]["user_role"]
+          state: string | null
           updated_at: string | null
         }
         Insert: {
           address?: string | null
           avatar_url?: string | null
+          city?: string | null
           created_at?: string | null
           email: string
           full_name?: string | null
           id: string
           is_verified?: boolean | null
           phone?: string | null
+          pincode?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          state?: string | null
           updated_at?: string | null
         }
         Update: {
           address?: string | null
           avatar_url?: string | null
+          city?: string | null
           created_at?: string | null
           email?: string
           full_name?: string | null
           id?: string
           is_verified?: boolean | null
           phone?: string | null
+          pincode?: string | null
           role?: Database["public"]["Enums"]["user_role"]
+          state?: string | null
           updated_at?: string | null
         }
         Relationships: []
