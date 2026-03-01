@@ -147,7 +147,7 @@ export default function Index() {
           <div className="text-center mt-12">
             <Link to="/auth">
               <Button size="lg" className="gap-2">
-                Join FarmFresh Today
+                Join FARM TO HOME Today
                 <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
@@ -163,10 +163,10 @@ export default function Index() {
               <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
                 <Leaf className="w-5 h-5 text-primary" />
               </div>
-              <span className="font-serif text-xl font-semibold">FarmFresh</span>
+              <span className="font-serif text-xl font-semibold">FARM TO HOME</span>
             </div>
             <p className="text-sm text-muted-foreground">
-              © 2026 FarmFresh Marketplace. All rights reserved.
+              © 2026 FARM TO HOME. All rights reserved.
             </p>
           </div>
         </div>
