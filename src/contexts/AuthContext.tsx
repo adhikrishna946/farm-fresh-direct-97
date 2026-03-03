@@ -13,6 +13,9 @@ interface Profile {
   avatar_url: string | null;
   phone: string | null;
   address: string | null;
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
 }
 
 interface AuthContextType {

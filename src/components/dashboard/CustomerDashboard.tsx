@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList } from 'lucide-react';
+import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock } from 'lucide-react';
 import FloatingCart from '@/components/cart/FloatingCart';
 
 interface Product {
@@ -20,6 +20,7 @@ interface Product {
   image_url: string | null;
   stock_quantity: number | null;
   farmer_id: string;
+  expiry_date: string | null;
 }
 
 interface CartItem {
@@ -71,7 +72,10 @@ export default function CustomerDashboard() {
       .order('created_at', { ascending: false });
     
     if (!error && data) {
-      setProducts(data);
+      // Filter out expired products
+      const now = new Date().toISOString().split('T')[0];
+      const active = data.filter((p: any) => !p.expiry_date || p.expiry_date >= now);
+      setProducts(active as Product[]);
     }
     setIsLoading(false);
   };
@@ -326,6 +330,18 @@ export default function CustomerDashboard() {
                   <Badge className="absolute top-2 left-2 capitalize">
                     {product.category}
                   </Badge>
+                  {product.expiry_date && (() => {
+                    const daysUntil = Math.ceil((new Date(product.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                    if (daysUntil <= 3 && daysUntil >= 0) {
+                      return (
+                        <Badge variant="secondary" className="absolute top-2 right-2 text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
+                          <Clock className="w-3 h-3 mr-1" />
+                          Expiring Soon
+                        </Badge>
+                      );
+                    }
+                    return null;
+                  })()}
                 </div>
                 
                 <CardContent className="pt-4">

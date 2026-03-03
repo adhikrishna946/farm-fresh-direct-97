@@ -6,11 +6,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Package, IndianRupee, Edit, Trash2, ImagePlus, TrendingUp, Loader2 } from 'lucide-react';
+import { Plus, Package, IndianRupee, Edit, Trash2, ImagePlus, TrendingUp, Loader2, AlertTriangle, Clock } from 'lucide-react';
+import FarmDetailsForm from './FarmDetailsForm';
 
 interface Product {
   id: string;
@@ -22,6 +24,7 @@ interface Product {
   image_url: string | null;
   stock_quantity: number | null;
   is_available: boolean | null;
+  expiry_date: string | null;
 }
 
 interface MarketPrice {
@@ -56,6 +59,7 @@ export default function FarmerDashboard() {
   const [price, setPrice] = useState('');
   const [unit, setUnit] = useState('kg');
   const [stockQuantity, setStockQuantity] = useState('');
+  const [expiryDate, setExpiryDate] = useState('');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
@@ -90,6 +94,7 @@ export default function FarmerDashboard() {
     setPrice('');
     setUnit('kg');
     setStockQuantity('');
+    setExpiryDate('');
     setImageFile(null);
     setEditingProduct(null);
     setMarketPrice(null);
@@ -147,7 +152,8 @@ export default function FarmerDashboard() {
       setPrice(product.price.toString());
       setUnit(product.unit || 'kg');
       setStockQuantity(product.stock_quantity?.toString() || '');
-      setAgreedToPrice(true); // Already agreed if editing
+      setExpiryDate(product.expiry_date || '');
+      setAgreedToPrice(true);
     } else {
       resetForm();
     }
@@ -201,6 +207,7 @@ export default function FarmerDashboard() {
         stock_quantity: parseInt(stockQuantity) || 0,
         image_url: imageUrl,
         farmer_id: profile.id,
+        expiry_date: expiryDate || null,
       };
       
       if (editingProduct) {
@@ -263,8 +270,23 @@ export default function FarmerDashboard() {
     }
   };
 
+  const isApproved = profile?.is_verified;
+
   return (
     <div className="space-y-6">
+      {/* Pending Approval Banner */}
+      {!isApproved && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+          <CardContent className="pt-6 flex items-center gap-3">
+            <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="font-medium text-amber-800 dark:text-amber-200">Account Pending Approval</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">Your farmer account is under review. You cannot add products until approved by an admin.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -274,7 +296,7 @@ export default function FarmerDashboard() {
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()} className="gap-2">
+            <Button onClick={() => handleOpenDialog()} className="gap-2" disabled={!isApproved}>
               <Plus className="w-4 h-4" />
               Add Product
             </Button>
@@ -407,7 +429,18 @@ export default function FarmerDashboard() {
                     onChange={(e) => setStockQuantity(e.target.value)}
                     placeholder="0"
                   />
-                </div>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="expiryDate">Expiry Date</Label>
+                <Input
+                  id="expiryDate"
+                  type="date"
+                  value={expiryDate}
+                  onChange={(e) => setExpiryDate(e.target.value)}
+                  min={new Date().toISOString().split('T')[0]}
+                />
+              </div>
               </div>
               
               <div className="space-y-2">
@@ -590,11 +623,24 @@ export default function FarmerDashboard() {
                     {product.is_available ? 'Available' : 'Unavailable'}
                   </span>
                 </div>
+                {product.expiry_date && (
+                  <div className="mt-2">
+                    {(() => {
+                      const daysUntil = Math.ceil((new Date(product.expiry_date).getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+                      if (daysUntil < 0) return <Badge variant="destructive" className="text-xs"><Clock className="w-3 h-3 mr-1" />Expired</Badge>;
+                      if (daysUntil <= 3) return <Badge variant="secondary" className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200"><Clock className="w-3 h-3 mr-1" />Expiring in {daysUntil}d</Badge>;
+                      return <span className="text-xs text-muted-foreground">Expires: {new Date(product.expiry_date).toLocaleDateString()}</span>;
+                    })()}
+                  </div>
+                )}
               </CardContent>
             </Card>
           ))}
         </div>
       )}
+
+      {/* Farm Details */}
+      <FarmDetailsForm />
     </div>
   );
 }
