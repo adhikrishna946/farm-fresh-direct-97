@@ -8,8 +8,10 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Users, 
   Package, 
-  ShoppingBag
+  ShoppingBag,
+  Tractor
 } from 'lucide-react';
+import AdminFarmerApproval from './AdminFarmerApproval';
 
 interface Profile {
   id: string;
@@ -185,12 +187,17 @@ export default function AdminDashboard() {
       </div>
 
       {/* Tabs */}
-      <Tabs defaultValue="users" className="space-y-4">
+      <Tabs defaultValue="farmers" className="space-y-4">
         <TabsList>
+          <TabsTrigger value="farmers">Farmer Approval</TabsTrigger>
           <TabsTrigger value="users">Users</TabsTrigger>
           <TabsTrigger value="products">Products</TabsTrigger>
           <TabsTrigger value="orders">Orders</TabsTrigger>
         </TabsList>
+        
+        <TabsContent value="farmers" className="space-y-4">
+          <AdminFarmerApproval />
+        </TabsContent>
         
         <TabsContent value="users" className="space-y-4">
           <Card>
