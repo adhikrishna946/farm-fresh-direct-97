@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Package, IndianRupee, Edit, Trash2, ImagePlus, TrendingUp, Loader2, AlertTriangle, Clock } from 'lucide-react';
 import FarmDetailsForm from './FarmDetailsForm';
@@ -66,7 +66,7 @@ export default function FarmerDashboard() {
   // Market price state
   const [marketPrice, setMarketPrice] = useState<MarketPriceResponse | null>(null);
   const [isFetchingPrice, setIsFetchingPrice] = useState(false);
-  const [agreedToPrice, setAgreedToPrice] = useState(false);
+  
 
   useEffect(() => {
     fetchProducts();
@@ -98,7 +98,7 @@ export default function FarmerDashboard() {
     setImageFile(null);
     setEditingProduct(null);
     setMarketPrice(null);
-    setAgreedToPrice(false);
+    
   };
 
   // Fetch market price from AgMarkNet API
@@ -153,7 +153,7 @@ export default function FarmerDashboard() {
       setUnit(product.unit || 'kg');
       setStockQuantity(product.stock_quantity?.toString() || '');
       setExpiryDate(product.expiry_date || '');
-      setAgreedToPrice(true);
+      
     } else {
       resetForm();
     }
@@ -461,40 +461,24 @@ export default function FarmerDashboard() {
                 )}
               </div>
               
-              {/* Agreement Checkbox */}
-              {marketPrice && (
-                <div className="flex items-start space-x-3 p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800">
-                  <Checkbox
-                    id="agree-price"
-                    checked={agreedToPrice}
-                    onCheckedChange={(checked) => setAgreedToPrice(checked === true)}
-                    className="mt-0.5"
-                  />
-                  <div className="space-y-1">
-                    <Label htmlFor="agree-price" className="text-sm font-medium cursor-pointer">
-                      I agree to the market pricing guidelines
-                    </Label>
-                    <p className="text-xs text-muted-foreground">
-                      By checking this, you confirm that your price is based on the current AgMarkNet market rates 
-                      (₹{marketPrice.market_price.min_price} - ₹{marketPrice.market_price.max_price}/kg).
-                    </p>
-                  </div>
+              {/* Price Info Note */}
+              {marketPrice && price && (
+                <div className="p-3 rounded-lg bg-muted/50 border border-border">
+                  <p className="text-xs text-muted-foreground">
+                    💡 Your price (₹{price}/{unit}) will be shown alongside the AgMarkNet market price 
+                    (₹{marketPrice.market_price.per_kg}/kg) so customers can compare.
+                  </p>
                 </div>
               )}
               
               <Button 
                 type="submit" 
                 className="w-full" 
-                disabled={isSubmitting || (marketPrice && !agreedToPrice && !editingProduct)}
+                disabled={isSubmitting}
               >
                 {isSubmitting ? 'Saving...' : editingProduct ? 'Update Product' : 'Add Product'}
               </Button>
               
-              {marketPrice && !agreedToPrice && !editingProduct && (
-                <p className="text-xs text-center text-amber-600">
-                  Please agree to the market pricing guidelines to add your product
-                </p>
-              )}
             </form>
           </DialogContent>
         </Dialog>

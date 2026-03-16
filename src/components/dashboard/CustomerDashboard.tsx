@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock, MapPin } from 'lucide-react';
+import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock, MapPin, TrendingUp, Loader2 } from 'lucide-react';
 import FloatingCart from '@/components/cart/FloatingCart';
 
 interface Product {
@@ -22,6 +22,7 @@ interface Product {
   farmer_id: string;
   expiry_date: string | null;
   farm_location?: string | null;
+  market_price?: number | null;
 }
 
 interface CartItem {
@@ -85,10 +86,37 @@ export default function CustomerDashboard() {
       
       const farmMap = new Map(farms?.map(f => [f.farmer_id, f.farm_location]) || []);
       
-      setProducts(active.map((p: any) => ({
+      const productsWithLocation = active.map((p: any) => ({
         ...p,
         farm_location: farmMap.get(p.farmer_id) || null,
-      })) as Product[]);
+        market_price: null,
+      })) as Product[];
+      
+      setProducts(productsWithLocation);
+      
+      // Fetch market prices in background for unique product names
+      const uniqueNames = [...new Set(productsWithLocation.map(p => p.name))];
+      const marketPriceMap = new Map<string, number>();
+      
+      await Promise.all(
+        uniqueNames.map(async (name) => {
+          try {
+            const { data: mpData } = await supabase.functions.invoke('get-market-price', {
+              body: { commodity: name, state: 'Karnataka' }
+            });
+            if (mpData?.market_price?.per_kg) {
+              marketPriceMap.set(name, mpData.market_price.per_kg);
+            }
+          } catch {}
+        })
+      );
+      
+      if (marketPriceMap.size > 0) {
+        setProducts(prev => prev.map(p => ({
+          ...p,
+          market_price: marketPriceMap.get(p.name) || null,
+        })));
+      }
     }
     setIsLoading(false);
   };
@@ -371,11 +399,35 @@ export default function CustomerDashboard() {
                     </p>
                   )}
                   
-                  <div className="flex items-center justify-between mt-3">
-                    <p className="font-bold text-primary">
+                  {/* Price comparison */}
+                  <div className="mt-3 space-y-1">
+                    <p className="font-bold text-primary text-lg">
                       ₹{product.price}/{product.unit}
                     </p>
-                    
+                    {product.market_price && (
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <TrendingUp className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          Market: ₹{product.market_price}/kg
+                        </span>
+                        {product.price < product.market_price ? (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">
+                            Below Market
+                          </Badge>
+                        ) : product.price > product.market_price ? (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">
+                            Above Market
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                            At Market
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-end mt-2">
                     {cartQty > 0 ? (
                       <div className="flex items-center gap-1">
                         <Button
