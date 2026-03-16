@@ -86,10 +86,37 @@ export default function CustomerDashboard() {
       
       const farmMap = new Map(farms?.map(f => [f.farmer_id, f.farm_location]) || []);
       
-      setProducts(active.map((p: any) => ({
+      const productsWithLocation = active.map((p: any) => ({
         ...p,
         farm_location: farmMap.get(p.farmer_id) || null,
-      })) as Product[]);
+        market_price: null,
+      })) as Product[];
+      
+      setProducts(productsWithLocation);
+      
+      // Fetch market prices in background for unique product names
+      const uniqueNames = [...new Set(productsWithLocation.map(p => p.name))];
+      const marketPriceMap = new Map<string, number>();
+      
+      await Promise.all(
+        uniqueNames.map(async (name) => {
+          try {
+            const { data: mpData } = await supabase.functions.invoke('get-market-price', {
+              body: { commodity: name, state: 'Karnataka' }
+            });
+            if (mpData?.market_price?.per_kg) {
+              marketPriceMap.set(name, mpData.market_price.per_kg);
+            }
+          } catch {}
+        })
+      );
+      
+      if (marketPriceMap.size > 0) {
+        setProducts(prev => prev.map(p => ({
+          ...p,
+          market_price: marketPriceMap.get(p.name) || null,
+        })));
+      }
     }
     setIsLoading(false);
   };
