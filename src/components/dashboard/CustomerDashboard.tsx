@@ -22,6 +22,7 @@ interface Product {
   farmer_id: string;
   expiry_date: string | null;
   farm_location?: string | null;
+  market_price?: number | null;
 }
 
 interface CartItem {
