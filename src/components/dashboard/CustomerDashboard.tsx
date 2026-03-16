@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock } from 'lucide-react';
+import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock, MapPin } from 'lucide-react';
 import FloatingCart from '@/components/cart/FloatingCart';
 
 interface Product {
@@ -21,6 +21,7 @@ interface Product {
   stock_quantity: number | null;
   farmer_id: string;
   expiry_date: string | null;
+  farm_location?: string | null;
 }
 
 interface CartItem {
@@ -72,10 +73,22 @@ export default function CustomerDashboard() {
       .order('created_at', { ascending: false });
     
     if (!error && data) {
-      // Filter out expired products
       const now = new Date().toISOString().split('T')[0];
       const active = data.filter((p: any) => !p.expiry_date || p.expiry_date >= now);
-      setProducts(active as Product[]);
+      
+      // Fetch farm locations for all farmer IDs
+      const farmerIds = [...new Set(active.map((p: any) => p.farmer_id))];
+      const { data: farms } = await supabase
+        .from('farm_details')
+        .select('farmer_id, farm_location')
+        .in('farmer_id', farmerIds);
+      
+      const farmMap = new Map(farms?.map(f => [f.farmer_id, f.farm_location]) || []);
+      
+      setProducts(active.map((p: any) => ({
+        ...p,
+        farm_location: farmMap.get(p.farmer_id) || null,
+      })) as Product[]);
     }
     setIsLoading(false);
   };
@@ -346,6 +359,12 @@ export default function CustomerDashboard() {
                 
                 <CardContent className="pt-4">
                   <h3 className="font-semibold line-clamp-1">{product.name}</h3>
+                  {product.farm_location && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      <span className="line-clamp-1">{product.farm_location}</span>
+                    </p>
+                  )}
                   {product.description && (
                     <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                       {product.description}
