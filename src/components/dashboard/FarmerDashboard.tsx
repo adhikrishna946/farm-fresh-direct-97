@@ -479,11 +479,6 @@ export default function FarmerDashboard() {
                 {isSubmitting ? 'Saving...' : editingProduct ? 'Update Product' : 'Add Product'}
               </Button>
               
-              {marketPrice && !agreedToPrice && !editingProduct && (
-                <p className="text-xs text-center text-amber-600">
-                  Please agree to the market pricing guidelines to add your product
-                </p>
-              )}
             </form>
           </DialogContent>
         </Dialog>
