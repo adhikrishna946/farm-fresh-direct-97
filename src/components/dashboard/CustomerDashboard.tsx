@@ -399,11 +399,35 @@ export default function CustomerDashboard() {
                     </p>
                   )}
                   
-                  <div className="flex items-center justify-between mt-3">
-                    <p className="font-bold text-primary">
+                  {/* Price comparison */}
+                  <div className="mt-3 space-y-1">
+                    <p className="font-bold text-primary text-lg">
                       ₹{product.price}/{product.unit}
                     </p>
-                    
+                    {product.market_price && (
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <TrendingUp className="w-3 h-3 text-muted-foreground" />
+                        <span className="text-muted-foreground">
+                          Market: ₹{product.market_price}/kg
+                        </span>
+                        {product.price < product.market_price ? (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 border-0">
+                            Below Market
+                          </Badge>
+                        ) : product.price > product.market_price ? (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 border-0">
+                            Above Market
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">
+                            At Market
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex items-center justify-end mt-2">
                     {cartQty > 0 ? (
                       <div className="flex items-center gap-1">
                         <Button
