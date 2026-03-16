@@ -181,7 +181,7 @@ export default function Cart() {
         description: `Your order #${order.id.slice(0, 8)} has been placed. Thank you for shopping with us!`,
       });
 
-      navigate('/dashboard');
+      navigate(`/order-success?id=${order.id}`);
     } catch (error: any) {
       toast({
         variant: 'destructive',

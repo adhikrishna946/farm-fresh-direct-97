@@ -351,6 +351,12 @@ export default function CustomerDashboard() {
                 
                 <CardContent className="pt-4">
                   <h3 className="font-semibold line-clamp-1">{product.name}</h3>
+                  {product.farm_location && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-1">
+                      <MapPin className="w-3 h-3 flex-shrink-0" />
+                      <span className="line-clamp-1">{product.farm_location}</span>
+                    </p>
+                  )}
                   {product.description && (
                     <p className="text-xs text-muted-foreground line-clamp-2 mt-1">
                       {product.description}
