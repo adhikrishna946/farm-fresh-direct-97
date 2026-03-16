@@ -21,6 +21,7 @@ interface Product {
   stock_quantity: number | null;
   farmer_id: string;
   expiry_date: string | null;
+  farm_location?: string | null;
 }
 
 interface CartItem {
