@@ -68,14 +68,18 @@ export default function CustomerDashboard() {
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('*')
+      .select('*, farm_details!products_farmer_id_fkey(farm_location)')
       .eq('is_available', true)
       .order('created_at', { ascending: false });
     
     if (!error && data) {
-      // Filter out expired products
       const now = new Date().toISOString().split('T')[0];
-      const active = data.filter((p: any) => !p.expiry_date || p.expiry_date >= now);
+      const active = data
+        .filter((p: any) => !p.expiry_date || p.expiry_date >= now)
+        .map((p: any) => ({
+          ...p,
+          farm_location: p.farm_details?.[0]?.farm_location || null,
+        }));
       setProducts(active as Product[]);
     }
     setIsLoading(false);
