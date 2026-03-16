@@ -66,7 +66,7 @@ export default function FarmerDashboard() {
   // Market price state
   const [marketPrice, setMarketPrice] = useState<MarketPriceResponse | null>(null);
   const [isFetchingPrice, setIsFetchingPrice] = useState(false);
-  const [agreedToPrice, setAgreedToPrice] = useState(false);
+  const [agreedToPrice] = useState(true);
 
   useEffect(() => {
     fetchProducts();
