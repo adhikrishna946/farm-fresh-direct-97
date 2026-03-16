@@ -98,7 +98,7 @@ export default function FarmerDashboard() {
     setImageFile(null);
     setEditingProduct(null);
     setMarketPrice(null);
-    setAgreedToPrice(false);
+    
   };
 
   // Fetch market price from AgMarkNet API
