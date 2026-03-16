@@ -9,7 +9,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
+
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Package, IndianRupee, Edit, Trash2, ImagePlus, TrendingUp, Loader2, AlertTriangle, Clock } from 'lucide-react';
 import FarmDetailsForm from './FarmDetailsForm';
