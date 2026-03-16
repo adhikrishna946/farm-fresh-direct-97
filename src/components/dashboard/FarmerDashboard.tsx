@@ -153,7 +153,7 @@ export default function FarmerDashboard() {
       setUnit(product.unit || 'kg');
       setStockQuantity(product.stock_quantity?.toString() || '');
       setExpiryDate(product.expiry_date || '');
-      setAgreedToPrice(true);
+      
     } else {
       resetForm();
     }
