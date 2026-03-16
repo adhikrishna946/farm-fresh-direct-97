@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock } from 'lucide-react';
+import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock, MapPin } from 'lucide-react';
 import FloatingCart from '@/components/cart/FloatingCart';
 
 interface Product {
