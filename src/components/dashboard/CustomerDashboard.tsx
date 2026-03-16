@@ -68,19 +68,27 @@ export default function CustomerDashboard() {
   const fetchProducts = async () => {
     const { data, error } = await supabase
       .from('products')
-      .select('*, farm_details!products_farmer_id_fkey(farm_location)')
+      .select('*')
       .eq('is_available', true)
       .order('created_at', { ascending: false });
     
     if (!error && data) {
       const now = new Date().toISOString().split('T')[0];
-      const active = data
-        .filter((p: any) => !p.expiry_date || p.expiry_date >= now)
-        .map((p: any) => ({
-          ...p,
-          farm_location: p.farm_details?.[0]?.farm_location || null,
-        }));
-      setProducts(active as Product[]);
+      const active = data.filter((p: any) => !p.expiry_date || p.expiry_date >= now);
+      
+      // Fetch farm locations for all farmer IDs
+      const farmerIds = [...new Set(active.map((p: any) => p.farmer_id))];
+      const { data: farms } = await supabase
+        .from('farm_details')
+        .select('farmer_id, farm_location')
+        .in('farmer_id', farmerIds);
+      
+      const farmMap = new Map(farms?.map(f => [f.farmer_id, f.farm_location]) || []);
+      
+      setProducts(active.map((p: any) => ({
+        ...p,
+        farm_location: farmMap.get(p.farmer_id) || null,
+      })) as Product[]);
     }
     setIsLoading(false);
   };
