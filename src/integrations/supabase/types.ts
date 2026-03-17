@@ -63,6 +63,8 @@ export type Database = {
           farmer_id: string
           farming_type: string | null
           id: string
+          latitude: number | null
+          longitude: number | null
           total_area: number | null
           updated_at: string | null
         }
@@ -75,6 +77,8 @@ export type Database = {
           farmer_id: string
           farming_type?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           total_area?: number | null
           updated_at?: string | null
         }
@@ -87,6 +91,8 @@ export type Database = {
           farmer_id?: string
           farming_type?: string | null
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           total_area?: number | null
           updated_at?: string | null
         }
@@ -141,6 +147,8 @@ export type Database = {
         Row: {
           created_at: string | null
           customer_id: string
+          delivery_charge: number | null
+          delivery_distance_km: number | null
           id: string
           shipping_address: string | null
           status: string | null
@@ -150,6 +158,8 @@ export type Database = {
         Insert: {
           created_at?: string | null
           customer_id: string
+          delivery_charge?: number | null
+          delivery_distance_km?: number | null
           id?: string
           shipping_address?: string | null
           status?: string | null
@@ -159,6 +169,8 @@ export type Database = {
         Update: {
           created_at?: string | null
           customer_id?: string
+          delivery_charge?: number | null
+          delivery_distance_km?: number | null
           id?: string
           shipping_address?: string | null
           status?: string | null
