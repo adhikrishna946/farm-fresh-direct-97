@@ -8,7 +8,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { MapPin, Loader2 } from 'lucide-react';
+import { MapPin, Loader2, Navigation } from 'lucide-react';
+import { geocodeAddress } from '@/lib/delivery';
 
 interface FarmDetails {
   id?: string;
@@ -18,6 +19,8 @@ interface FarmDetails {
   area_unit: string;
   farming_type: string;
   description: string;
+  latitude: number | null;
+  longitude: number | null;
 }
 
 export default function FarmDetailsForm() {
@@ -25,6 +28,7 @@ export default function FarmDetailsForm() {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isGeocoding, setIsGeocoding] = useState(false);
   const [details, setDetails] = useState<FarmDetails>({
     farm_name: '',
     farm_location: '',
@@ -32,6 +36,8 @@ export default function FarmDetailsForm() {
     area_unit: 'acres',
     farming_type: 'conventional',
     description: '',
+    latitude: null,
+    longitude: null,
   });
 
   useEffect(() => {
@@ -54,9 +60,27 @@ export default function FarmDetailsForm() {
         area_unit: data.area_unit || 'acres',
         farming_type: data.farming_type || 'conventional',
         description: data.description || '',
+        latitude: (data as any).latitude ?? null,
+        longitude: (data as any).longitude ?? null,
       });
     }
     setIsLoading(false);
+  };
+
+  const handleGeocodeLocation = async () => {
+    if (!details.farm_location.trim()) {
+      toast({ variant: 'destructive', title: 'Error', description: 'Enter a farm location first.' });
+      return;
+    }
+    setIsGeocoding(true);
+    const result = await geocodeAddress(details.farm_location);
+    if (result) {
+      setDetails(d => ({ ...d, latitude: parseFloat(result.lat.toFixed(6)), longitude: parseFloat(result.lon.toFixed(6)) }));
+      toast({ title: 'Location found!', description: `Lat: ${result.lat.toFixed(6)}, Lng: ${result.lon.toFixed(6)}` });
+    } else {
+      toast({ variant: 'destructive', title: 'Not found', description: 'Could not geocode this address. Try entering coordinates manually.' });
+    }
+    setIsGeocoding(false);
   };
 
   const handleSave = async () => {
@@ -66,7 +90,7 @@ export default function FarmDetailsForm() {
     }
 
     setIsSaving(true);
-    const payload = {
+    const payload: any = {
       farmer_id: profile.id,
       farm_name: details.farm_name.trim(),
       farm_location: details.farm_location.trim() || null,
@@ -74,6 +98,8 @@ export default function FarmDetailsForm() {
       area_unit: details.area_unit,
       farming_type: details.farming_type,
       description: details.description.trim() || null,
+      latitude: details.latitude,
+      longitude: details.longitude,
     };
 
     let error;
@@ -122,13 +148,55 @@ export default function FarmDetailsForm() {
           </div>
           <div className="space-y-2">
             <Label>Farm Location</Label>
+            <div className="flex gap-2">
+              <Input
+                value={details.farm_location}
+                onChange={(e) => setDetails(d => ({ ...d, farm_location: e.target.value }))}
+                placeholder="Village, District, State"
+                className="flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={handleGeocodeLocation}
+                disabled={isGeocoding}
+                title="Auto-detect coordinates from location"
+              >
+                {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Navigation className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Coordinates */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-2">
+            <Label>Latitude</Label>
             <Input
-              value={details.farm_location}
-              onChange={(e) => setDetails(d => ({ ...d, farm_location: e.target.value }))}
-              placeholder="Village, District, State"
+              type="number"
+              step="0.000001"
+              value={details.latitude ?? ''}
+              onChange={(e) => setDetails(d => ({ ...d, latitude: e.target.value ? parseFloat(e.target.value) : null }))}
+              placeholder="e.g. 12.9716"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label>Longitude</Label>
+            <Input
+              type="number"
+              step="0.000001"
+              value={details.longitude ?? ''}
+              onChange={(e) => setDetails(d => ({ ...d, longitude: e.target.value ? parseFloat(e.target.value) : null }))}
+              placeholder="e.g. 77.5946"
             />
           </div>
         </div>
+        {details.latitude && details.longitude && (
+          <p className="text-xs text-muted-foreground">
+            📍 Coordinates set: {details.latitude}, {details.longitude} — used for delivery charge calculation.
+          </p>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <div className="space-y-2">

@@ -7,16 +7,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  ShoppingCart, 
-  Trash2, 
-  Plus, 
-  Minus, 
-  ArrowLeft, 
-  Package,
-  Leaf
+  ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Package, Leaf, Truck, Loader2
 } from 'lucide-react';
+import { geocodeAddress, calculateDistance, getDeliveryCharge } from '@/lib/delivery';
 
 interface CartItem {
   id: string;
@@ -29,7 +25,14 @@ interface CartItem {
     unit: string | null;
     image_url: string | null;
     stock_quantity: number | null;
+    farmer_id: string;
   };
+}
+
+interface DeliveryInfo {
+  charge: number;
+  distance: number;
+  farmerIds: string[];
 }
 
 export default function Cart() {
@@ -40,109 +43,145 @@ export default function Cart() {
   const [isLoading, setIsLoading] = useState(true);
   const [isCheckingOut, setIsCheckingOut] = useState(false);
   const [shippingAddress, setShippingAddress] = useState('');
+  const [isGeocoding, setIsGeocoding] = useState(false);
+  const [customerCoords, setCustomerCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [farmCoords, setFarmCoords] = useState<Map<string, { lat: number; lng: number }>>(new Map());
+  const [deliveryCharge, setDeliveryCharge] = useState(0);
+  const [maxDistance, setMaxDistance] = useState(0);
 
   useEffect(() => {
-    if (!loading && !user) {
-      navigate('/auth');
-    }
+    if (!loading && !user) navigate('/auth');
   }, [user, loading, navigate]);
 
   useEffect(() => {
-    if (profile) {
-      fetchCart();
-    }
+    if (profile) fetchCart();
   }, [profile]);
+
+  // Load saved delivery address
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('farmfresh_delivery_address');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.address) setShippingAddress(parsed.address);
+        if (parsed.lat && parsed.lon) setCustomerCoords({ lat: parsed.lat, lon: parsed.lon });
+      }
+    } catch {}
+  }, []);
+
+  // Recalculate delivery when coords or cart changes
+  useEffect(() => {
+    if (customerCoords && farmCoords.size > 0 && cartItems.length > 0) {
+      // Get unique farmer IDs from cart
+      const farmerIds = [...new Set(cartItems.map(i => i.product.farmer_id))];
+      let maxDist = 0;
+      farmerIds.forEach(fid => {
+        const fc = farmCoords.get(fid);
+        if (fc) {
+          const dist = calculateDistance(fc.lat, fc.lng, customerCoords.lat, customerCoords.lon);
+          if (dist > maxDist) maxDist = dist;
+        }
+      });
+      const dist = parseFloat(maxDist.toFixed(1));
+      setMaxDistance(dist);
+      setDeliveryCharge(getDeliveryCharge(maxDist));
+    } else {
+      setDeliveryCharge(0);
+      setMaxDistance(0);
+    }
+  }, [customerCoords, farmCoords, cartItems]);
 
   const fetchCart = async () => {
     if (!profile) return;
     
     const { data, error } = await supabase
       .from('cart_items')
-      .select(`
-        id,
-        product_id,
-        quantity,
-        product:products(id, name, price, unit, image_url, stock_quantity)
-      `)
+      .select(`id, product_id, quantity, product:products(id, name, price, unit, image_url, stock_quantity, farmer_id)`)
       .eq('customer_id', profile.id);
     
     if (!error && data) {
-      setCartItems(data as unknown as CartItem[]);
+      const items = data as unknown as CartItem[];
+      setCartItems(items);
+
+      // Fetch farm coordinates for all farmers in cart
+      const farmerIds = [...new Set(items.map(i => i.product.farmer_id))];
+      if (farmerIds.length > 0) {
+        const { data: farms } = await supabase
+          .from('farm_details')
+          .select('farmer_id, latitude, longitude')
+          .in('farmer_id', farmerIds);
+        
+        const coordsMap = new Map<string, { lat: number; lng: number }>();
+        farms?.forEach((f: any) => {
+          if (f.latitude && f.longitude) {
+            coordsMap.set(f.farmer_id, { lat: f.latitude, lng: f.longitude });
+          }
+        });
+        setFarmCoords(coordsMap);
+      }
     }
     setIsLoading(false);
   };
 
+  const handleGeocodeAddress = async () => {
+    if (!shippingAddress.trim()) return;
+    setIsGeocoding(true);
+    const result = await geocodeAddress(shippingAddress);
+    if (result) {
+      setCustomerCoords(result);
+      localStorage.setItem('farmfresh_delivery_address', JSON.stringify({ address: shippingAddress, lat: result.lat, lon: result.lon }));
+      toast({ title: 'Address located!', description: 'Delivery charge calculated.' });
+    } else {
+      toast({ variant: 'destructive', title: 'Address not found', description: 'Try a more specific address.' });
+    }
+    setIsGeocoding(false);
+  };
+
   const updateQuantity = async (itemId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      const { error } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('id', itemId);
-      
-      if (!error) {
-        fetchCart();
-      }
+      const { error } = await supabase.from('cart_items').delete().eq('id', itemId);
+      if (!error) fetchCart();
     } else {
-      const { error } = await supabase
-        .from('cart_items')
-        .update({ quantity: newQuantity })
-        .eq('id', itemId);
-      
-      if (!error) {
-        fetchCart();
-      }
+      const { error } = await supabase.from('cart_items').update({ quantity: newQuantity }).eq('id', itemId);
+      if (!error) fetchCart();
     }
   };
 
   const removeItem = async (itemId: string) => {
-    const { error } = await supabase
-      .from('cart_items')
-      .delete()
-      .eq('id', itemId);
-    
+    const { error } = await supabase.from('cart_items').delete().eq('id', itemId);
     if (!error) {
       fetchCart();
-      toast({
-        title: 'Item removed',
-        description: 'The item has been removed from your cart.',
-      });
+      toast({ title: 'Item removed', description: 'The item has been removed from your cart.' });
     }
   };
 
-  const cartTotal = cartItems.reduce((sum, item) => 
-    sum + (item.product?.price || 0) * item.quantity, 0
-  );
+  const cartTotal = cartItems.reduce((sum, item) => sum + (item.product?.price || 0) * item.quantity, 0);
+  const grandTotal = cartTotal + deliveryCharge;
 
   const handleCheckout = async () => {
     if (!profile) return;
-
     if (!shippingAddress.trim()) {
-      toast({
-        variant: 'destructive',
-        title: 'Address required',
-        description: 'Please enter a shipping address.',
-      });
+      toast({ variant: 'destructive', title: 'Address required', description: 'Please enter a shipping address.' });
       return;
     }
 
     setIsCheckingOut(true);
-
     try {
-      // Create order
       const { data: order, error: orderError } = await supabase
         .from('orders')
         .insert({
           customer_id: profile.id,
-          total_amount: cartTotal,
+          total_amount: grandTotal,
           status: 'pending',
           shipping_address: shippingAddress,
-        })
+          delivery_charge: deliveryCharge,
+          delivery_distance_km: maxDistance || null,
+        } as any)
         .select()
         .single();
 
       if (orderError) throw orderError;
 
-      // Create order items
       const orderItems = cartItems.map(item => ({
         order_id: order.id,
         product_id: item.product_id,
@@ -151,43 +190,20 @@ export default function Cart() {
         price_at_purchase: item.product.price,
       }));
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
-
+      const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
       if (itemsError) throw itemsError;
 
-      // Clear cart
-      const { error: clearError } = await supabase
-        .from('cart_items')
-        .delete()
-        .eq('customer_id', profile.id);
-
+      const { error: clearError } = await supabase.from('cart_items').delete().eq('customer_id', profile.id);
       if (clearError) throw clearError;
-
-      // Verify order is readable before redirecting
-      const { data: verifiedOrder } = await supabase
-        .from('orders')
-        .select('id')
-        .eq('id', order.id)
-        .single();
-
-      if (!verifiedOrder) {
-        throw new Error('Order created but verification failed');
-      }
 
       toast({
         title: '🎉 Order Placed Successfully!',
-        description: `Your order #${order.id.slice(0, 8)} has been placed. Thank you for shopping with us!`,
+        description: `Your order #${order.id.slice(0, 8)} has been placed.`,
       });
 
       navigate(`/order-success?id=${order.id}`);
     } catch (error: any) {
-      toast({
-        variant: 'destructive',
-        title: 'Checkout failed',
-        description: error.message,
-      });
+      toast({ variant: 'destructive', title: 'Checkout failed', description: error.message });
     } finally {
       setIsCheckingOut(false);
     }
@@ -203,7 +219,6 @@ export default function Cart() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-card/80 backdrop-blur-md">
         <div className="container flex h-16 items-center justify-between">
           <Link to="/" className="flex items-center gap-2">
@@ -216,21 +231,15 @@ export default function Cart() {
       </header>
 
       <main className="container py-8">
-        <Button
-          variant="ghost"
-          onClick={() => navigate('/dashboard')}
-          className="gap-2 mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Shop
+        <Button variant="ghost" onClick={() => navigate('/dashboard')} className="gap-2 mb-6">
+          <ArrowLeft className="w-4 h-4" />Back to Shop
         </Button>
 
         <div className="grid lg:grid-cols-3 gap-8">
           {/* Cart Items */}
           <div className="lg:col-span-2 space-y-4">
             <h1 className="text-3xl font-serif font-bold flex items-center gap-3">
-              <ShoppingCart className="w-8 h-8" />
-              Your Cart
+              <ShoppingCart className="w-8 h-8" />Your Cart
             </h1>
 
             {cartItems.length === 0 ? (
@@ -240,12 +249,8 @@ export default function Cart() {
                     <ShoppingCart className="w-8 h-8 text-muted-foreground" />
                   </div>
                   <h3 className="text-lg font-semibold mb-2">Your cart is empty</h3>
-                  <p className="text-muted-foreground mb-4">
-                    Add some fresh produce to get started
-                  </p>
-                  <Button onClick={() => navigate('/dashboard')}>
-                    Start Shopping
-                  </Button>
+                  <p className="text-muted-foreground mb-4">Add some fresh produce to get started</p>
+                  <Button onClick={() => navigate('/dashboard')}>Start Shopping</Button>
                 </CardContent>
               </Card>
             ) : (
@@ -256,61 +261,34 @@ export default function Cart() {
                       <div className="flex gap-4">
                         <div className="w-20 h-20 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                           {item.product?.image_url ? (
-                            <img
-                              src={item.product.image_url}
-                              alt={item.product.name}
-                              className="w-full h-full object-cover"
-                            />
+                            <img src={item.product.image_url} alt={item.product.name} className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center">
                               <Package className="w-8 h-8 text-muted-foreground" />
                             </div>
                           )}
                         </div>
-
                         <div className="flex-1">
                           <div className="flex justify-between items-start">
                             <div>
                               <h3 className="font-semibold">{item.product?.name}</h3>
-                              <p className="text-sm text-muted-foreground">
-                                ₹{item.product?.price}/{item.product?.unit}
-                              </p>
+                              <p className="text-sm text-muted-foreground">₹{item.product?.price}/{item.product?.unit}</p>
                             </div>
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-destructive"
-                              onClick={() => removeItem(item.id)}
-                            >
+                            <Button variant="ghost" size="icon" className="h-8 w-8 text-destructive" onClick={() => removeItem(item.id)}>
                               <Trash2 className="w-4 h-4" />
                             </Button>
                           </div>
-
                           <div className="flex items-center justify-between mt-4">
                             <div className="flex items-center gap-2">
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => updateQuantity(item.id, item.quantity - 1)}
-                              >
+                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.id, item.quantity - 1)}>
                                 <Minus className="w-3 h-3" />
                               </Button>
-                              <span className="w-8 text-center font-medium">
-                                {item.quantity}
-                              </span>
-                              <Button
-                                variant="outline"
-                                size="icon"
-                                className="h-8 w-8"
-                                onClick={() => updateQuantity(item.id, item.quantity + 1)}
-                              >
+                              <span className="w-8 text-center font-medium">{item.quantity}</span>
+                              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => updateQuantity(item.id, item.quantity + 1)}>
                                 <Plus className="w-3 h-3" />
                               </Button>
                             </div>
-                            <p className="font-bold">
-                              ₹{((item.product?.price || 0) * item.quantity).toFixed(2)}
-                            </p>
+                            <p className="font-bold">₹{((item.product?.price || 0) * item.quantity).toFixed(2)}</p>
                           </div>
                         </div>
                       </div>
@@ -332,18 +310,31 @@ export default function Cart() {
                   <div className="space-y-2">
                     {cartItems.map((item) => (
                       <div key={item.id} className="flex justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          {item.product?.name} × {item.quantity}
-                        </span>
+                        <span className="text-muted-foreground">{item.product?.name} × {item.quantity}</span>
                         <span>₹{((item.product?.price || 0) * item.quantity).toFixed(2)}</span>
                       </div>
                     ))}
                   </div>
 
+                  {/* Delivery charge */}
+                  <div className="border-t pt-3 space-y-2">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Subtotal</span>
+                      <span>₹{cartTotal.toFixed(2)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground flex items-center gap-1">
+                        <Truck className="w-3 h-3" />
+                        Delivery {maxDistance > 0 && `(${maxDistance} km)`}
+                      </span>
+                      <span>{deliveryCharge > 0 ? `₹${deliveryCharge}` : customerCoords ? '₹0' : '—'}</span>
+                    </div>
+                  </div>
+
                   <div className="border-t pt-4">
                     <div className="flex justify-between font-bold text-lg">
                       <span>Total</span>
-                      <span>₹{cartTotal.toFixed(2)}</span>
+                      <span>₹{grandTotal.toFixed(2)}</span>
                     </div>
                   </div>
 
@@ -356,15 +347,25 @@ export default function Cart() {
                       onChange={(e) => setShippingAddress(e.target.value)}
                       rows={3}
                     />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={handleGeocodeAddress}
+                      disabled={isGeocoding || !shippingAddress.trim()}
+                    >
+                      {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+                      {customerCoords ? 'Recalculate Delivery' : 'Calculate Delivery Charge'}
+                    </Button>
+                    {customerCoords && deliveryCharge > 0 && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        📍 Delivery: ₹{deliveryCharge} for {maxDistance} km distance
+                      </p>
+                    )}
                   </div>
 
-                  <Button
-                    className="w-full"
-                    size="lg"
-                    onClick={handleCheckout}
-                    disabled={isCheckingOut}
-                  >
-                    {isCheckingOut ? 'Processing...' : 'Place Order'}
+                  <Button className="w-full" size="lg" onClick={handleCheckout} disabled={isCheckingOut}>
+                    {isCheckingOut ? 'Processing...' : `Place Order — ₹${grandTotal.toFixed(2)}`}
                   </Button>
                 </CardContent>
               </Card>
