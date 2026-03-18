@@ -85,7 +85,10 @@ export default function CustomerDashboard() {
       try {
         const parsed = JSON.parse(saved);
         setDeliveryAddress(parsed.address || '');
-        if (parsed.lat && parsed.lon) setCustomerCoords({ lat: parsed.lat, lon: parsed.lon });
+        if (parsed.lat && parsed.lon) {
+          setCustomerCoords({ lat: parsed.lat, lon: parsed.lon });
+          setLocationDetected(!!parsed.detected);
+        }
       } catch {}
     }
   }, [profile]);
