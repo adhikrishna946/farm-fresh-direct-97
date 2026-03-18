@@ -48,6 +48,8 @@ export default function Cart() {
   const [farmCoords, setFarmCoords] = useState<Map<string, { lat: number; lng: number }>>(new Map());
   const [deliveryCharge, setDeliveryCharge] = useState(0);
   const [maxDistance, setMaxDistance] = useState(0);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [locationDetected, setLocationDetected] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
