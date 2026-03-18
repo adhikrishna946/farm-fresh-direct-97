@@ -333,7 +333,7 @@ export default function FarmerDashboard() {
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()} className="gap-2" disabled={!isApproved}>
+            <Button onClick={() => handleOpenDialog()} className="gap-2" disabled={!canAddProducts}>
               <Plus className="w-4 h-4" />
               Add Product
             </Button>
