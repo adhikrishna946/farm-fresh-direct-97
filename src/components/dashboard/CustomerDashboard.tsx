@@ -198,13 +198,56 @@ export default function CustomerDashboard() {
     setIsGeocoding(true);
     const result = await geocodeAddress(deliveryAddress);
     if (result) {
+      if (!isInThrissur(result.lat, result.lon)) {
+        toast({ variant: 'destructive', title: 'Delivery unavailable', description: 'Delivery available only in Thrissur, Kerala.' });
+        setIsGeocoding(false);
+        return;
+      }
       setCustomerCoords(result);
+      setLocationDetected(false);
       localStorage.setItem('farmfresh_delivery_address', JSON.stringify({ address: deliveryAddress, lat: result.lat, lon: result.lon }));
       toast({ title: 'Address located!', description: 'Delivery charges updated for all products.' });
     } else {
       toast({ variant: 'destructive', title: 'Address not found', description: 'Try a more specific address.' });
     }
     setIsGeocoding(false);
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ variant: 'destructive', title: 'Not supported', description: 'Geolocation is not supported by your browser.' });
+      return;
+    }
+    setIsDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        if (!isInThrissur(latitude, longitude)) {
+          toast({ variant: 'destructive', title: 'Delivery unavailable', description: 'Delivery available only in Thrissur, Kerala.' });
+          setIsDetecting(false);
+          return;
+        }
+        const address = await reverseGeocode(latitude, longitude);
+        const coords = { lat: latitude, lon: longitude };
+        setCustomerCoords(coords);
+        setDeliveryAddress(address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        setLocationDetected(true);
+        localStorage.setItem('farmfresh_delivery_address', JSON.stringify({
+          address: address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+          lat: latitude, lon: longitude, detected: true,
+        }));
+        toast({ title: '📍 Location detected!', description: address || 'Your location has been set.' });
+        setIsDetecting(false);
+      },
+      (error) => {
+        const msg = error.code === 1
+          ? 'Please allow location access or enter address manually.'
+          : 'Could not detect location. Please enter address manually.';
+        toast({ variant: 'destructive', title: 'Location error', description: msg });
+        setIsDetecting(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const fetchCart = async () => {
