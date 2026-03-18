@@ -52,6 +52,8 @@ export default function FarmerDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [kisanCardUrl, setKisanCardUrl] = useState<string | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState('pending');
   
   // Form state
   const [name, setName] = useState('');
