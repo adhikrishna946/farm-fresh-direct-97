@@ -384,25 +384,54 @@ export default function CustomerDashboard() {
               </Badge>
             )}
           </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter your delivery address (e.g., Koramangala, Bangalore)"
-              value={deliveryAddress}
-              onChange={(e) => setDeliveryAddress(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleGeocodeDeliveryAddress()}
-              className="flex-1"
-            />
-            <Button
-              onClick={handleGeocodeDeliveryAddress}
-              disabled={isGeocoding || !deliveryAddress.trim()}
-              size="sm"
-            >
-              {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Locate'}
-            </Button>
-          </div>
+
+          {locationDetected && customerCoords && (
+            <div className="mb-3 p-2.5 rounded-md bg-primary/5 border border-primary/15">
+              <p className="text-sm text-foreground">
+                📍 Location detected: <span className="font-medium">{deliveryAddress}</span>
+              </p>
+              <button
+                className="text-xs text-primary underline mt-1"
+                onClick={() => { setLocationDetected(false); }}
+              >
+                Change location manually
+              </button>
+            </div>
+          )}
+
+          {!locationDetected && (
+            <div className="flex gap-2 mb-2">
+              <Input
+                placeholder="Enter your delivery address (e.g., Thrissur, Kerala)"
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleGeocodeDeliveryAddress()}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleGeocodeDeliveryAddress}
+                disabled={isGeocoding || !deliveryAddress.trim()}
+                size="sm"
+              >
+                {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Locate'}
+              </Button>
+            </div>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2"
+            onClick={handleDetectLocation}
+            disabled={isDetecting}
+          >
+            {isDetecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LocateFixed className="w-4 h-4" />}
+            {isDetecting ? 'Detecting...' : 'Detect My Location'}
+          </Button>
+
           {!customerCoords && (
             <p className="text-xs text-muted-foreground mt-2">
-              Enter your address to see delivery charges for each product.
+              Detect your location or enter an address to see delivery charges.
             </p>
           )}
         </CardContent>

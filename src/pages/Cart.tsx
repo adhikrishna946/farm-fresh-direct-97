@@ -386,23 +386,54 @@ export default function Cart() {
 
                   <div className="space-y-2">
                     <Label htmlFor="address">Shipping Address</Label>
-                    <Textarea
-                      id="address"
-                      placeholder="Enter your full address..."
-                      value={shippingAddress}
-                      onChange={(e) => setShippingAddress(e.target.value)}
-                      rows={3}
-                    />
+
+                    {locationDetected && customerCoords && (
+                      <div className="p-2.5 rounded-md bg-primary/5 border border-primary/15">
+                        <p className="text-sm">
+                          📍 Location detected: <span className="font-medium">{shippingAddress}</span>
+                        </p>
+                        <button
+                          className="text-xs text-primary underline mt-1"
+                          onClick={() => setLocationDetected(false)}
+                        >
+                          Change location manually
+                        </button>
+                      </div>
+                    )}
+
+                    {!locationDetected && (
+                      <>
+                        <Textarea
+                          id="address"
+                          placeholder="Enter your full address..."
+                          value={shippingAddress}
+                          onChange={(e) => setShippingAddress(e.target.value)}
+                          rows={3}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full gap-2"
+                          onClick={handleGeocodeAddress}
+                          disabled={isGeocoding || !shippingAddress.trim()}
+                        >
+                          {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+                          {customerCoords ? 'Recalculate Delivery' : 'Calculate Delivery Charge'}
+                        </Button>
+                      </>
+                    )}
+
                     <Button
                       variant="outline"
                       size="sm"
                       className="w-full gap-2"
-                      onClick={handleGeocodeAddress}
-                      disabled={isGeocoding || !shippingAddress.trim()}
+                      onClick={handleDetectLocation}
+                      disabled={isDetecting}
                     >
-                      {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
-                      {customerCoords ? 'Recalculate Delivery' : 'Calculate Delivery Charge'}
+                      {isDetecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LocateFixed className="w-4 h-4" />}
+                      {isDetecting ? 'Detecting...' : 'Detect My Location'}
                     </Button>
+
                     {customerCoords && deliveryCharge > 0 && (
                       <p className="text-xs text-muted-foreground text-center">
                         📍 Delivery: ₹{deliveryCharge} for {maxDistance} km distance
