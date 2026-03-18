@@ -288,7 +288,8 @@ export default function FarmerDashboard() {
   };
 
   const isApproved = profile?.is_verified;
-
+  const isKisanVerified = verificationStatus === 'approved';
+  const canAddProducts = isApproved && isKisanVerified;
   return (
     <div className="space-y-6">
       {/* Pending Approval Banner */}
