@@ -8,9 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock, MapPin, TrendingUp, Loader2, Truck } from 'lucide-react';
+import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock, MapPin, TrendingUp, Loader2, Truck, LocateFixed } from 'lucide-react';
 import FloatingCart from '@/components/cart/FloatingCart';
-import { geocodeAddress, calculateDistance, getDeliveryCharge } from '@/lib/delivery';
+import { geocodeAddress, reverseGeocode, isInThrissur, calculateDistance, getDeliveryCharge } from '@/lib/delivery';
 
 interface Product {
   id: string;
