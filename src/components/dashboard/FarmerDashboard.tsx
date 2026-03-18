@@ -73,7 +73,21 @@ export default function FarmerDashboard() {
 
   useEffect(() => {
     fetchProducts();
+    fetchKisanCardStatus();
   }, []);
+
+  const fetchKisanCardStatus = async () => {
+    if (!profile) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('kisan_card_url, verification_status')
+      .eq('id', profile.id)
+      .single();
+    if (data) {
+      setKisanCardUrl((data as any).kisan_card_url || null);
+      setVerificationStatus((data as any).verification_status || 'pending');
+    }
+  };
 
   const fetchProducts = async () => {
     if (!profile) return;
