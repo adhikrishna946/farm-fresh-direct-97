@@ -67,6 +67,7 @@ export default function Cart() {
         const parsed = JSON.parse(saved);
         if (parsed.address) setShippingAddress(parsed.address);
         if (parsed.lat && parsed.lon) setCustomerCoords({ lat: parsed.lat, lon: parsed.lon });
+        if (parsed.detected) setLocationDetected(true);
       }
     } catch {}
   }, []);
