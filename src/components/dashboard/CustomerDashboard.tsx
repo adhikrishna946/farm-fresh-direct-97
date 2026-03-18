@@ -70,6 +70,8 @@ export default function CustomerDashboard() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [customerCoords, setCustomerCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [locationDetected, setLocationDetected] = useState(false);
 
   const categories = ['vegetables', 'rice', 'fruits', 'dairy', 'other'];
 
