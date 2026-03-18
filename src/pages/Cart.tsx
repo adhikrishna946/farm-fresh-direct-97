@@ -10,9 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Package, Leaf, Truck, Loader2
+  ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Package, Leaf, Truck, Loader2, LocateFixed
 } from 'lucide-react';
-import { geocodeAddress, calculateDistance, getDeliveryCharge } from '@/lib/delivery';
+import { geocodeAddress, reverseGeocode, isInThrissur, calculateDistance, getDeliveryCharge } from '@/lib/delivery';
 
 interface CartItem {
   id: string;
