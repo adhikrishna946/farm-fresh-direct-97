@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Package, IndianRupee, Edit, Trash2, ImagePlus, TrendingUp, Loader2, AlertTriangle, Clock } from 'lucide-react';
 import FarmDetailsForm from './FarmDetailsForm';
+import KisanCardUpload from './KisanCardUpload';
 
 interface Product {
   id: string;
@@ -51,6 +52,8 @@ export default function FarmerDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [kisanCardUrl, setKisanCardUrl] = useState<string | null>(null);
+  const [verificationStatus, setVerificationStatus] = useState('pending');
   
   // Form state
   const [name, setName] = useState('');
@@ -70,7 +73,21 @@ export default function FarmerDashboard() {
 
   useEffect(() => {
     fetchProducts();
+    fetchKisanCardStatus();
   }, []);
+
+  const fetchKisanCardStatus = async () => {
+    if (!profile) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('kisan_card_url, verification_status')
+      .eq('id', profile.id)
+      .single();
+    if (data) {
+      setKisanCardUrl((data as any).kisan_card_url || null);
+      setVerificationStatus((data as any).verification_status || 'pending');
+    }
+  };
 
   const fetchProducts = async () => {
     if (!profile) return;
@@ -271,7 +288,8 @@ export default function FarmerDashboard() {
   };
 
   const isApproved = profile?.is_verified;
-
+  const isKisanVerified = verificationStatus === 'approved';
+  const canAddProducts = isApproved && isKisanVerified;
   return (
     <div className="space-y-6">
       {/* Pending Approval Banner */}
@@ -287,6 +305,25 @@ export default function FarmerDashboard() {
         </Card>
       )}
 
+      {isApproved && !isKisanVerified && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/20 dark:border-amber-800">
+          <CardContent className="pt-6 flex items-center gap-3">
+            <Clock className="w-5 h-5 text-amber-600 shrink-0" />
+            <div>
+              <p className="font-medium text-amber-800 dark:text-amber-200">Kisan Card Verification Required</p>
+              <p className="text-sm text-amber-700 dark:text-amber-300">Upload your Kisan Card below to get verified and start selling products.</p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Kisan Card Upload */}
+      <KisanCardUpload
+        kisanCardUrl={kisanCardUrl}
+        verificationStatus={verificationStatus}
+        onUploaded={fetchKisanCardStatus}
+      />
+
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
@@ -296,7 +333,7 @@ export default function FarmerDashboard() {
         
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <Button onClick={() => handleOpenDialog()} className="gap-2" disabled={!isApproved}>
+            <Button onClick={() => handleOpenDialog()} className="gap-2" disabled={!canAddProducts}>
               <Plus className="w-4 h-4" />
               Add Product
             </Button>

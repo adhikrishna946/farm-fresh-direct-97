@@ -16,6 +16,8 @@ interface Profile {
   city: string | null;
   state: string | null;
   pincode: string | null;
+  kisan_card_url: string | null;
+  verification_status: string | null;
 }
 
 interface AuthContextType {
