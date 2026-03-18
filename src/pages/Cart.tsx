@@ -10,9 +10,9 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { 
-  ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Package, Leaf, Truck, Loader2
+  ShoppingCart, Trash2, Plus, Minus, ArrowLeft, Package, Leaf, Truck, Loader2, LocateFixed
 } from 'lucide-react';
-import { geocodeAddress, calculateDistance, getDeliveryCharge } from '@/lib/delivery';
+import { geocodeAddress, reverseGeocode, isInThrissur, calculateDistance, getDeliveryCharge } from '@/lib/delivery';
 
 interface CartItem {
   id: string;
@@ -48,6 +48,8 @@ export default function Cart() {
   const [farmCoords, setFarmCoords] = useState<Map<string, { lat: number; lng: number }>>(new Map());
   const [deliveryCharge, setDeliveryCharge] = useState(0);
   const [maxDistance, setMaxDistance] = useState(0);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [locationDetected, setLocationDetected] = useState(false);
 
   useEffect(() => {
     if (!loading && !user) navigate('/auth');
@@ -65,6 +67,7 @@ export default function Cart() {
         const parsed = JSON.parse(saved);
         if (parsed.address) setShippingAddress(parsed.address);
         if (parsed.lat && parsed.lon) setCustomerCoords({ lat: parsed.lat, lon: parsed.lon });
+        if (parsed.detected) setLocationDetected(true);
       }
     } catch {}
   }, []);
@@ -128,13 +131,56 @@ export default function Cart() {
     setIsGeocoding(true);
     const result = await geocodeAddress(shippingAddress);
     if (result) {
+      if (!isInThrissur(result.lat, result.lon)) {
+        toast({ variant: 'destructive', title: 'Delivery unavailable', description: 'Delivery available only in Thrissur, Kerala.' });
+        setIsGeocoding(false);
+        return;
+      }
       setCustomerCoords(result);
+      setLocationDetected(false);
       localStorage.setItem('farmfresh_delivery_address', JSON.stringify({ address: shippingAddress, lat: result.lat, lon: result.lon }));
       toast({ title: 'Address located!', description: 'Delivery charge calculated.' });
     } else {
       toast({ variant: 'destructive', title: 'Address not found', description: 'Try a more specific address.' });
     }
     setIsGeocoding(false);
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ variant: 'destructive', title: 'Not supported', description: 'Geolocation is not supported by your browser.' });
+      return;
+    }
+    setIsDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        if (!isInThrissur(latitude, longitude)) {
+          toast({ variant: 'destructive', title: 'Delivery unavailable', description: 'Delivery available only in Thrissur, Kerala.' });
+          setIsDetecting(false);
+          return;
+        }
+        const address = await reverseGeocode(latitude, longitude);
+        const coords = { lat: latitude, lon: longitude };
+        setCustomerCoords(coords);
+        setShippingAddress(address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        setLocationDetected(true);
+        localStorage.setItem('farmfresh_delivery_address', JSON.stringify({
+          address: address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+          lat: latitude, lon: longitude, detected: true,
+        }));
+        toast({ title: '📍 Location detected!', description: address || 'Your location has been set.' });
+        setIsDetecting(false);
+      },
+      (error) => {
+        const msg = error.code === 1
+          ? 'Please allow location access or enter address manually.'
+          : 'Could not detect location. Please enter address manually.';
+        toast({ variant: 'destructive', title: 'Location error', description: msg });
+        setIsDetecting(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const updateQuantity = async (itemId: string, newQuantity: number) => {
@@ -340,23 +386,54 @@ export default function Cart() {
 
                   <div className="space-y-2">
                     <Label htmlFor="address">Shipping Address</Label>
-                    <Textarea
-                      id="address"
-                      placeholder="Enter your full address..."
-                      value={shippingAddress}
-                      onChange={(e) => setShippingAddress(e.target.value)}
-                      rows={3}
-                    />
+
+                    {locationDetected && customerCoords && (
+                      <div className="p-2.5 rounded-md bg-primary/5 border border-primary/15">
+                        <p className="text-sm">
+                          📍 Location detected: <span className="font-medium">{shippingAddress}</span>
+                        </p>
+                        <button
+                          className="text-xs text-primary underline mt-1"
+                          onClick={() => setLocationDetected(false)}
+                        >
+                          Change location manually
+                        </button>
+                      </div>
+                    )}
+
+                    {!locationDetected && (
+                      <>
+                        <Textarea
+                          id="address"
+                          placeholder="Enter your full address..."
+                          value={shippingAddress}
+                          onChange={(e) => setShippingAddress(e.target.value)}
+                          rows={3}
+                        />
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full gap-2"
+                          onClick={handleGeocodeAddress}
+                          disabled={isGeocoding || !shippingAddress.trim()}
+                        >
+                          {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
+                          {customerCoords ? 'Recalculate Delivery' : 'Calculate Delivery Charge'}
+                        </Button>
+                      </>
+                    )}
+
                     <Button
                       variant="outline"
                       size="sm"
                       className="w-full gap-2"
-                      onClick={handleGeocodeAddress}
-                      disabled={isGeocoding || !shippingAddress.trim()}
+                      onClick={handleDetectLocation}
+                      disabled={isDetecting}
                     >
-                      {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : <Truck className="w-4 h-4" />}
-                      {customerCoords ? 'Recalculate Delivery' : 'Calculate Delivery Charge'}
+                      {isDetecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LocateFixed className="w-4 h-4" />}
+                      {isDetecting ? 'Detecting...' : 'Detect My Location'}
                     </Button>
+
                     {customerCoords && deliveryCharge > 0 && (
                       <p className="text-xs text-muted-foreground text-center">
                         📍 Delivery: ₹{deliveryCharge} for {maxDistance} km distance

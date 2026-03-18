@@ -8,9 +8,9 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock, MapPin, TrendingUp, Loader2, Truck } from 'lucide-react';
+import { Search, ShoppingCart, Package, Plus, Minus, ClipboardList, Clock, MapPin, TrendingUp, Loader2, Truck, LocateFixed } from 'lucide-react';
 import FloatingCart from '@/components/cart/FloatingCart';
-import { geocodeAddress, calculateDistance, getDeliveryCharge } from '@/lib/delivery';
+import { geocodeAddress, reverseGeocode, isInThrissur, calculateDistance, getDeliveryCharge } from '@/lib/delivery';
 
 interface Product {
   id: string;
@@ -70,6 +70,8 @@ export default function CustomerDashboard() {
   const [deliveryAddress, setDeliveryAddress] = useState('');
   const [customerCoords, setCustomerCoords] = useState<{ lat: number; lon: number } | null>(null);
   const [isGeocoding, setIsGeocoding] = useState(false);
+  const [isDetecting, setIsDetecting] = useState(false);
+  const [locationDetected, setLocationDetected] = useState(false);
 
   const categories = ['vegetables', 'rice', 'fruits', 'dairy', 'other'];
 
@@ -83,7 +85,10 @@ export default function CustomerDashboard() {
       try {
         const parsed = JSON.parse(saved);
         setDeliveryAddress(parsed.address || '');
-        if (parsed.lat && parsed.lon) setCustomerCoords({ lat: parsed.lat, lon: parsed.lon });
+        if (parsed.lat && parsed.lon) {
+          setCustomerCoords({ lat: parsed.lat, lon: parsed.lon });
+          setLocationDetected(!!parsed.detected);
+        }
       } catch {}
     }
   }, [profile]);
@@ -193,13 +198,56 @@ export default function CustomerDashboard() {
     setIsGeocoding(true);
     const result = await geocodeAddress(deliveryAddress);
     if (result) {
+      if (!isInThrissur(result.lat, result.lon)) {
+        toast({ variant: 'destructive', title: 'Delivery unavailable', description: 'Delivery available only in Thrissur, Kerala.' });
+        setIsGeocoding(false);
+        return;
+      }
       setCustomerCoords(result);
+      setLocationDetected(false);
       localStorage.setItem('farmfresh_delivery_address', JSON.stringify({ address: deliveryAddress, lat: result.lat, lon: result.lon }));
       toast({ title: 'Address located!', description: 'Delivery charges updated for all products.' });
     } else {
       toast({ variant: 'destructive', title: 'Address not found', description: 'Try a more specific address.' });
     }
     setIsGeocoding(false);
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      toast({ variant: 'destructive', title: 'Not supported', description: 'Geolocation is not supported by your browser.' });
+      return;
+    }
+    setIsDetecting(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        if (!isInThrissur(latitude, longitude)) {
+          toast({ variant: 'destructive', title: 'Delivery unavailable', description: 'Delivery available only in Thrissur, Kerala.' });
+          setIsDetecting(false);
+          return;
+        }
+        const address = await reverseGeocode(latitude, longitude);
+        const coords = { lat: latitude, lon: longitude };
+        setCustomerCoords(coords);
+        setDeliveryAddress(address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`);
+        setLocationDetected(true);
+        localStorage.setItem('farmfresh_delivery_address', JSON.stringify({
+          address: address || `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`,
+          lat: latitude, lon: longitude, detected: true,
+        }));
+        toast({ title: '📍 Location detected!', description: address || 'Your location has been set.' });
+        setIsDetecting(false);
+      },
+      (error) => {
+        const msg = error.code === 1
+          ? 'Please allow location access or enter address manually.'
+          : 'Could not detect location. Please enter address manually.';
+        toast({ variant: 'destructive', title: 'Location error', description: msg });
+        setIsDetecting(false);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const fetchCart = async () => {
@@ -336,25 +384,54 @@ export default function CustomerDashboard() {
               </Badge>
             )}
           </div>
-          <div className="flex gap-2">
-            <Input
-              placeholder="Enter your delivery address (e.g., Koramangala, Bangalore)"
-              value={deliveryAddress}
-              onChange={(e) => setDeliveryAddress(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleGeocodeDeliveryAddress()}
-              className="flex-1"
-            />
-            <Button
-              onClick={handleGeocodeDeliveryAddress}
-              disabled={isGeocoding || !deliveryAddress.trim()}
-              size="sm"
-            >
-              {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Locate'}
-            </Button>
-          </div>
+
+          {locationDetected && customerCoords && (
+            <div className="mb-3 p-2.5 rounded-md bg-primary/5 border border-primary/15">
+              <p className="text-sm text-foreground">
+                📍 Location detected: <span className="font-medium">{deliveryAddress}</span>
+              </p>
+              <button
+                className="text-xs text-primary underline mt-1"
+                onClick={() => { setLocationDetected(false); }}
+              >
+                Change location manually
+              </button>
+            </div>
+          )}
+
+          {!locationDetected && (
+            <div className="flex gap-2 mb-2">
+              <Input
+                placeholder="Enter your delivery address (e.g., Thrissur, Kerala)"
+                value={deliveryAddress}
+                onChange={(e) => setDeliveryAddress(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleGeocodeDeliveryAddress()}
+                className="flex-1"
+              />
+              <Button
+                onClick={handleGeocodeDeliveryAddress}
+                disabled={isGeocoding || !deliveryAddress.trim()}
+                size="sm"
+              >
+                {isGeocoding ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Locate'}
+              </Button>
+            </div>
+          )}
+
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full gap-2"
+            onClick={handleDetectLocation}
+            disabled={isDetecting}
+          >
+            {isDetecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <LocateFixed className="w-4 h-4" />}
+            {isDetecting ? 'Detecting...' : 'Detect My Location'}
+          </Button>
+
           {!customerCoords && (
             <p className="text-xs text-muted-foreground mt-2">
-              Enter your address to see delivery charges for each product.
+              Detect your location or enter an address to see delivery charges.
             </p>
           )}
         </CardContent>
