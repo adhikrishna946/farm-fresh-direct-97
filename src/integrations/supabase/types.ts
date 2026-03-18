@@ -253,11 +253,13 @@ export type Database = {
           full_name: string | null
           id: string
           is_verified: boolean | null
+          kisan_card_url: string | null
           phone: string | null
           pincode: string | null
           role: Database["public"]["Enums"]["user_role"]
           state: string | null
           updated_at: string | null
+          verification_status: string | null
         }
         Insert: {
           address?: string | null
@@ -268,11 +270,13 @@ export type Database = {
           full_name?: string | null
           id: string
           is_verified?: boolean | null
+          kisan_card_url?: string | null
           phone?: string | null
           pincode?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           state?: string | null
           updated_at?: string | null
+          verification_status?: string | null
         }
         Update: {
           address?: string | null
@@ -283,11 +287,13 @@ export type Database = {
           full_name?: string | null
           id?: string
           is_verified?: boolean | null
+          kisan_card_url?: string | null
           phone?: string | null
           pincode?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           state?: string | null
           updated_at?: string | null
+          verification_status?: string | null
         }
         Relationships: []
       }
