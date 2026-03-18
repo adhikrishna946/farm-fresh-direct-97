@@ -42,3 +42,42 @@ export async function geocodeAddress(address: string): Promise<{ lat: number; lo
     return null;
   }
 }
+
+// Reverse geocode coordinates to address using Nominatim
+export async function reverseGeocode(lat: number, lon: number): Promise<string | null> {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=16&addressdetails=1`,
+      { headers: { 'User-Agent': 'FarmFresh-App' } }
+    );
+    const data = await response.json();
+    if (data?.address) {
+      const a = data.address;
+      const parts = [
+        a.suburb || a.neighbourhood || a.village || a.hamlet || a.town || '',
+        a.city || a.county || a.state_district || '',
+        a.state || '',
+        a.country || '',
+      ].filter(Boolean);
+      return parts.join(', ');
+    }
+    return data?.display_name || null;
+  } catch {
+    return null;
+  }
+}
+
+// Thrissur district approximate bounding box
+const THRISSUR_BOUNDS = {
+  minLat: 10.15,
+  maxLat: 10.65,
+  minLon: 75.90,
+  maxLon: 76.45,
+};
+
+export function isInThrissur(lat: number, lon: number): boolean {
+  return (
+    lat >= THRISSUR_BOUNDS.minLat && lat <= THRISSUR_BOUNDS.maxLat &&
+    lon >= THRISSUR_BOUNDS.minLon && lon <= THRISSUR_BOUNDS.maxLon
+  );
+}
