@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { Plus, Package, IndianRupee, Edit, Trash2, ImagePlus, TrendingUp, Loader2, AlertTriangle, Clock } from 'lucide-react';
 import FarmDetailsForm from './FarmDetailsForm';
+import KisanCardUpload from './KisanCardUpload';
 
 interface Product {
   id: string;
